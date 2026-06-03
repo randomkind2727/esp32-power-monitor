@@ -1,8 +1,3 @@
-// ── Supabase Client Configuration ──
-// File: lib/supabase.js
-//
-// Install: npm install @supabase/supabase-js
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,14 +5,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Missing Supabase environment variables. ' +
-    'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local'
+    'Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
   );
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ── Helper: Fetch latest reading ──
+/** Fetch the single most recent reading */
 export async function getLatestReading() {
   const { data, error } = await supabase
     .from('power_readings')
@@ -25,62 +19,76 @@ export async function getLatestReading() {
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
-
-  if (error) {
-    console.error('Error fetching latest reading:', error);
-    return null;
-  }
+  if (error) { console.error('getLatestReading:', error); return null; }
   return data;
 }
 
-// ── Helper: Fetch recent readings ──
-export async function getRecentReadings(limit = 100) {
+/** Fetch recent readings oldest-first for charts */
+export async function getRecentReadings(limit = 200) {
   const { data, error } = await supabase
     .from('power_readings')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
-
-  if (error) {
-    console.error('Error fetching recent readings:', error);
-    return [];
-  }
-  return data.reverse(); // Oldest first for charts
+  if (error) { console.error('getRecentReadings:', error); return []; }
+  return data.reverse();
 }
 
-// ── Helper: Subscribe to realtime updates ──
+/** Subscribe to INSERT events, returns the channel (call supabase.removeChannel on cleanup) */
 export function subscribeToPowerReadings(callback) {
   const channel = supabase
-    .channel('power-readings-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'power_readings',
-      },
-      (payload) => {
-        callback(payload.new);
-      }
-    )
+    .channel('power-realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'power_readings' },
+      (payload) => callback(payload.new))
     .subscribe();
-
   return channel;
 }
 
-// ── Helper: Get stats for time range ──
+/** Get aggregate stats for a time window (hours) */
 export async function getPowerStats(hours = 24) {
-  const start = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-  const end = new Date().toISOString();
-
   const { data, error } = await supabase.rpc('get_power_stats', {
-    start_time: start,
-    end_time: end,
+    start_time: new Date(Date.now() - hours * 3600000).toISOString(),
+    end_time: new Date().toISOString(),
   });
-
-  if (error) {
-    console.error('Error fetching stats:', error);
-    return null;
-  }
+  if (error) { console.error('getPowerStats:', error); return null; }
   return data?.[0] || null;
+}
+
+/** Get readings for today only */
+export async function getTodaysReadings() {
+  const start = new Date(); start.setHours(0,0,0,0);
+  const { data, error } = await supabase
+    .from('power_readings')
+    .select('*')
+    .gte('created_at', start.toISOString())
+    .order('created_at', { ascending: true });
+  if (error) { console.error('getTodaysReadings:', error); return []; }
+  return data;
+}
+
+/** Get readings for the current week */
+export async function getWeeklyReadings() {
+  const start = new Date();
+  start.setDate(start.getDate() - 7);
+  start.setHours(0,0,0,0);
+  const { data, error } = await supabase
+    .from('power_readings')
+    .select('*')
+    .gte('created_at', start.toISOString())
+    .order('created_at', { ascending: true });
+  if (error) { console.error('getWeeklyReadings:', error); return []; }
+  return data;
+}
+
+/** Get readings for the current month */
+export async function getMonthlyReadings() {
+  const start = new Date();
+  start.setDate(1); start.setHours(0,0,0,0);
+  const { data, error } = await supabase
+    .from('power_readings')
+    .select('*')
+    .gte('created_at', start.toISOString())
+    .order('created_at', { ascending: true });
+  if (error) { console.error('getMonthlyReadings:', error); return []; }
+  return data;
 }
