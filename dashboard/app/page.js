@@ -8,7 +8,6 @@ import {
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   supabase, getRecentReadings, subscribeToPowerReadings,
-  getTodaysReadings, getWeeklyReadings, getMonthlyReadings,
 } from '@/lib/supabase';
 
 ChartJS.register(

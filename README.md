@@ -1,113 +1,158 @@
-# ⚡ ESP32 Power Monitor — Real-Time AC Power Dashboard
+# ⚡ ESP32 Power Monitor — Real-Time AC Power & Cost Dashboard
 
-**Measure AC voltage, current, and power in real-time. View on a live web dashboard from anywhere.**
-
-```
-ESP32 + ZMPT101B + SCT-013  →  Supabase  →  Vercel Dashboard
-     (sensors)                  (backend)      (frontend)
-```
-
-## What It Does
-
-- **Measures** AC voltage (V), current (A), and power (W) of any electrical device
-- **Sends** data to Supabase every 2 seconds via Wi-Fi
-- **Displays** live gauges, charts, and a readings table on a hosted website
-- **Updates in real-time** using Supabase Realtime subscriptions
-- **Accessible from anywhere** — not just your local network
-
-## Project Structure
+> **Measure AC voltage, current, and power in real-time. Track electricity costs. View on a live web dashboard from anywhere.**
 
 ```
-power-monitor-project/
-├── firmware/
+ESP32 + ZMPT101B + SCT-013  →  Supabase (PostgreSQL)  →  Vercel (Next.js Dashboard)
+        (sensors + firmware)          (backend + realtime)         (frontend + hosting)
+```
+
+![Dashboard Preview](https://raw.githubusercontent.com/randomkind2727/esp32-power-monitor/main/docs/preview.png)
+
+## 🎯 Features
+
+- **Live Gauges** — Voltage, Current, Power, Cost Today with animated circular progress rings
+- **Electricity Cost Tracker** — Configurable ₹/kWh rate, daily/weekly/monthly cost breakdown
+- **Real-Time Charts** — Line chart with metric toggles, bar chart for hourly cost
+- **Cost Analytics** — Today vs Yesterday comparison, estimated monthly cost, spending trends
+- **Realtime Updates** — Supabase Realtime subscriptions, data updates every 2 seconds
+- **Responsive Design** — Dark glassmorphism theme, works on mobile/tablet/desktop
+- **Demo Mode** — Works without Supabase for local preview with realistic generated data
+
+## 📁 Project Structure
+
+```
+├── firmware/                   # ESP32 Arduino code
 │   └── power_monitor/
-│       └── power_monitor.ino    # ESP32 Arduino code
-├── dashboard/
+│       └── power_monitor.ino   # Reads ZMPT101B + SCT-013, sends to Supabase
+│
+├── dashboard/                  # Next.js 14 frontend (deploy to Vercel)
 │   ├── app/
-│   │   ├── layout.js            # Next.js layout
-│   │   ├── page.js              # Main dashboard page
-│   │   └── globals.css          # Tailwind + custom styles
+│   │   ├── page.js             # Main dashboard (gauges, charts, cost, table)
+│   │   ├── layout.js           # Root layout with metadata
+│   │   └── globals.css         # Dark glassmorphism theme
 │   ├── lib/
-│   │   └── supabase.js          # Supabase client + helpers
-│   ├── package.json             # Dependencies
-│   ├── next.config.js           # Next.js config
-│   ├── tailwind.config.js       # Tailwind config
-│   ├── postcss.config.js        # PostCSS config
-│   ├── jsconfig.json            # Path aliases
-│   └── .env.example             # Environment variable template
-├── supabase/
-│   └── schema.sql               # Database schema + RLS policies
+│   │   └── supabase.js         # Supabase client + helper functions
+│   ├── package.json            # Dependencies
+│   ├── vercel.json             # Vercel deployment config
+│   └── .env.example            # Environment variable template
+│
+├── supabase/                   # Database schema + functions
+│   └── schema.sql              # Tables, indexes, RLS policies, views, RPC
+│
 ├── docs/
-│   ├── wiring-and-calibration.md  # Wiring diagram + calibration
-│   └── deployment-guide.md        # Step-by-step deployment
-└── README.md                    # This file
+│   ├── deployment-guide.md     # Step-by-step Supabase + Vercel setup
+│   └── wiring-and-calibration.md # Sensor wiring + calibration guide
+│
+└── README.md                   # This file
 ```
 
-## Quick Start
+## 🚀 Quick Deploy to Vercel (One Click)
 
-### 1. Hardware (~$13)
-- ESP32 DevKit V1 (~$5)
-- ZMPT101B voltage sensor (~$4)
-- SCT-013-000 current transformer (~$4)
-- 33Ω resistor, 2× 10kΩ resistors, 10µF capacitor
+**Prerequisites:** A Supabase project with the schema deployed.
 
-### 2. Supabase Setup (5 min)
-1. Create project at [supabase.com](https://supabase.com)
-2. Run `supabase/schema.sql` in SQL Editor
-3. Enable Realtime on `power_readings` table
-4. Copy your Project URL and anon key
+### Step 1: Set Up Supabase
 
-### 3. ESP32 Setup (10 min)
-1. Install libraries: `ESPSupabase`, `ArduinoJson`
-2. Edit WiFi + Supabase credentials in `power_monitor.ino`
-3. Wire sensors (see `docs/wiring-and-calibration.md`)
-4. Upload to ESP32
+1. Create a project at [supabase.com](https://app.supabase.com)
+2. Go to **SQL Editor** → paste and run [`supabase/schema.sql`](supabase/schema.sql)
+3. Go to **Database → Replication** → Enable Realtime on `power_readings`
+4. Copy your **Project URL** and **anon key** from Settings → API
 
-### 4. Dashboard Deploy (5 min)
-1. Push `dashboard/` to GitHub
-2. Import into [vercel.com](https://vercel.com)
-3. Add environment variables
-4. Deploy — done! 🎉
+### Step 2: Deploy Dashboard
 
-**Full deployment guide:** `docs/deployment-guide.md`
+Option A — **Vercel CLI:**
+```bash
+cd dashboard
+npm install
+vercel
+# Paste your Supabase URL and anon key when prompted
+```
 
-## Dashboard Features
+Option B — **Vercel Dashboard:**
+1. Push this repo to GitHub
+2. Go to [vercel.com](https://vercel.com) → Import Project → Select this repo
+3. Set root directory to `dashboard/`
+4. Add environment variables:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL = https://YOUR_PROJECT_ID.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJ...your_key_here
+   ```
+5. Click **Deploy** 🎉
 
-- **Live gauges** — Voltage, Current, Power with color-coded cards
-- **Real-time line chart** — Toggle between V/I/P or view all
-- **Stats row** — Max values, average power, reading count
-- **Recent readings table** — Last 20 readings with timestamps
-- **Connection status** — Live/disconnected indicator
-- **Dark theme** — Easy on the eyes
-- **Responsive** — Works on mobile, tablet, and desktop
+Option C — **Vercel CLI with env:**
+```bash
+cd dashboard
+vercel env add NEXT_PUBLIC_SUPABASE_URL
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+vercel --prod
+```
 
-## Tech Stack
+### Step 3: Configure ESP32
 
-| Layer | Technology |
-|-------|-----------|
-| **Microcontroller** | ESP32 (Arduino framework) |
-| **Voltage Sensor** | ZMPT101B (isolated AC voltage transformer) |
-| **Current Sensor** | SCT-013-000 (non-invasive CT clamp) |
-| **Backend** | Supabase (PostgreSQL + REST API + Realtime) |
-| **Frontend** | Next.js 14 + React 18 + Tailwind CSS |
-| **Charts** | Chart.js + react-chartjs-2 |
-| **Hosting** | Vercel (free tier) |
+1. Install libraries in Arduino IDE: `ESPSupabase`, `ArduinoJson`
+2. Edit credentials in `firmware/power_monitor/power_monitor.ino`:
+   - WiFi SSID + password
+   - Supabase URL + anon key
+3. Wire sensors (see [`docs/wiring-and-calibration.md`](docs/wiring-and-calibration.md))
+4. Upload to ESP32 → watch the dashboard come alive! ⚡
 
-## Cost
+## 🛠 Tech Stack
 
-**$0/month** — Everything runs on free tiers:
-- Supabase free: 500DB, 2GB bandwidth
-- Vercel free: 100GB bandwidth
-- Hardware: ~$13 one-time
+| Layer | Technology | Cost |
+|-------|-----------|------|
+| **Microcontroller** | ESP32 DevKit V1 | ~$5 one-time |
+| **Voltage Sensor** | ZMPT101B (isolated) | ~$4 one-time |
+| **Current Sensor** | SCT-013-000 (CT clamp) | ~$4 one-time |
+| **Backend** | Supabase (PostgreSQL + Realtime) | Free tier |
+| **Frontend** | Next.js 14 + React 18 + Tailwind CSS | Free |
+| **Charts** | Chart.js + react-chartjs-2 | Free (MIT) |
+| **Hosting** | Vercel | Free tier |
+| **Total** | | **~$13 one-time + $0/month** |
 
-## Safety
+## 📊 Dashboard Sections
 
-⚠️ **AC mains voltage is lethal.** 
-- ZMPT101B provides galvanic isolation
-- SCT-013 is non-invasive (clamp-on)
-- Never work on live circuits
-- Start with low-voltage testing if you're new to electronics
+| Section | What It Shows |
+|---------|--------------|
+| **Gauge Cards** | Live V/I/P/Cost with circular progress rings + sparklines |
+| **Stats Grid** | Avg, Peak, Energy, Cost, Est. Monthly, Readings count |
+| **Live Chart** | Multi-line time series with toggles + time range selector |
+| **Hourly Cost** | Bar chart of today's spending per hour |
+| **Comparison** | Today vs Yesterday doughnut with % change |
+| **Cost Summary** | Daily/Weekly/Monthly cards with progress bars |
+| **Readings Table** | Last 50 readings with per-row cost calculation |
 
-## License
+## ⚙️ Configuration
+
+The dashboard has a settings panel (⚙️ button) for:
+- **Electricity Rate** (₹/kWh) — default 8.5
+- **Device Name** — displayed in header
+- **Standby Threshold** (W) — minimum power to count as active
+- **Cost Period** — toggle daily/weekly/monthly views
+
+All settings persist in localStorage.
+
+## 🔧 Local Development
+
+```bash
+cd dashboard
+npm install
+cp .env.example .env.local   # Add your Supabase credentials
+npm run dev                  # http://localhost:3000
+npm run build                # Production build
+```
+
+**Demo Mode:** If Supabase credentials are invalid, the dashboard auto-generates realistic demo data (~230V, ~1.2A, ~280W) that updates every 2 seconds. A 🧪 DEMO badge appears in the header.
+
+## ⚠️ Safety
+
+AC mains voltage is **lethal**. The ZMPT101B provides galvanic isolation, and the SCT-013 is non-invasive (clamp-on). Never work on live circuits. Start with low-voltage testing if you're new to electronics.
+
+## 📖 Documentation
+
+- [`docs/deployment-guide.md`](docs/deployment-guide.md) — Full Supabase + Vercel setup walkthrough
+- [`docs/wiring-and-calibration.md`](docs/wiring-and-calibration.md) — Sensor wiring diagram + calibration steps
+- [`firmware/power_monitor/power_monitor.ino`](firmware/power_monitor/power_monitor.ino) — ESP32 firmware with comments
+
+## 📄 License
 
 MIT — Use it, modify it, share it.
