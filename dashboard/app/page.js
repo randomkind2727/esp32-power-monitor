@@ -281,6 +281,57 @@ export default function Dashboard() {
   const readingsRef = useRef([]);
   readingsRef.current = readings;
 
+  // ── Demo data generator (for preview without Supabase) ──
+  const [demoMode, setDemoMode] = useState(false);
+  useEffect(() => {
+    // Generate 200 demo readings if Supabase fails
+    if (loading && !demoMode) {
+      const timer = setTimeout(() => {
+        const now = Date.now();
+        const demo = [];
+        for (let i = 199; i >= 0; i--) {
+          const t = new Date(now - i * 2000);
+          const baseV = 230 + Math.sin(i * 0.1) * 5;
+          const baseI = 1.2 + Math.sin(i * 0.05) * 0.4 + Math.random() * 0.2;
+          const baseP = baseV * baseI * (0.85 + Math.random() * 0.1);
+          demo.push({
+            id: 1000 + i,
+            device_id: 'esp32_demo',
+            voltage: +(baseV + (Math.random() - 0.5) * 3).toFixed(1),
+            current: +(baseI + (Math.random() - 0.5) * 0.1).toFixed(3),
+            power: +(baseP + (Math.random() - 0.5) * 20).toFixed(1),
+            created_at: t.toISOString(),
+          });
+        }
+        setReadings(demo);
+        setLatest(demo[demo.length - 1]);
+        setLoading(false);
+        setDemoMode(true);
+        setConnected(true);
+
+        // Keep generating new readings every 2s
+        const iv = setInterval(() => {
+          setLatest(prev => {
+            const newR = {
+              id: Date.now(),
+              device_id: 'esp32_demo',
+              voltage: +((prev?.voltage || 230) + (Math.random() - 0.5) * 4).toFixed(1),
+              current: +((prev?.current || 1.2) + (Math.random() - 0.5) * 0.3).toFixed(3),
+              power: +((prev?.power || 280) + (Math.random() - 0.5) * 30).toFixed(1),
+              created_at: new Date().toISOString(),
+            };
+            setReadings(p => [...p, newR].slice(-300));
+            setFlash(newR.id);
+            setTimeout(() => setFlash(null), 800);
+            return newR;
+          });
+        }, 2000);
+        return () => clearInterval(iv);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, demoMode]);
+
   // Clock
   useEffect(() => {
     const t = setInterval(() => setClock(new Date().toLocaleString('en-IN', {
@@ -581,8 +632,12 @@ export default function Dashboard() {
             }`}>
               <span className={`status-dot ${connected ? 'active' : 'inactive'}`} />
               {connected ? 'LIVE' : 'OFFLINE'}
-            </span>
             </div>
+            {demoMode && (
+              <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                🧪 DEMO
+              </span>
+            )}
             <button onClick={() => setShowSettings(true)}
               className="glass w-10 h-10 rounded-xl flex items-center justify-center text-lg hover:scale-110 transition-transform"
               style={{ color: 'var(--text-2)' }}>
